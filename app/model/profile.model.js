@@ -4,6 +4,7 @@ var officeResource = require('../resource/office.resource');
 var userResource = require('../resource/user.resource');
 var roleResource = require('../resource/role.resource');
 var skillResource = require('../resource/skill.resource');
+var skillGroupResource = require('../resource/skillGroup.resource');
 var fileResource = require('../resource/file.resource');
 var assignmentResource = require('../resource/assignment.resource');
 var domainResource = require('../resource/domain.resource');
@@ -46,6 +47,7 @@ function loadUser(id, headers) {
         return userResource.getUserById(id, headers)
             .then(loadProfileImageForUser(headers))
             .then(loadSkillsForUser(headers))
+            .then(loadSkillGroups(headers))
             .then(loadRoleForUser(headers))
             .then(loadAssignmentsForUser(headers))
             .then(loadOfficeForUser(headers))
@@ -58,6 +60,7 @@ function loadCurrentUser(headers) {
         return userResource.getCurrentUser(headers)
             .then(loadProfileImageForUser(headers))
             .then(loadSkillsForUser(headers))
+            .then(loadSkillGroups(headers))
             .then(loadRoleForUser(headers))
             .then(loadAssignmentsForUser(headers))
             .then(loadOfficeForUser(headers))
@@ -85,6 +88,20 @@ function loadSkillsForUser(headers) {
 function matchSkillsAndConnectors(skills, connectors) {
     return utils.extractPropertiesFromConnectors('skillId', connectors, ['level', 'futureLevel', 'years'])
         .then(utils.matchListAndObjectIds(skills));
+}
+
+// SKILLGROUPS
+// ============================================================================
+
+function loadSkillGroups(headers) {
+    return function(user) {
+        var skillGroups = skillGroupResource.getAllSkillGroups(headers);
+        return Promise.all([skillGroups])
+            .then(function() {
+                return skillGroups;
+            })
+            .then(utils.setFieldForObject(user, 'skillGroups'));
+    };
 }
 
 // ROLE
