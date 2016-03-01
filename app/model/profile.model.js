@@ -79,8 +79,7 @@ function loadSkillsForUser(headers) {
             .then(function() {
                 return matchSkillsAndConnectors(skills.value(), connectors.value());
             })
-            .then(utils.sortListByProperty('level'))
-            .then(utils.reverseList)
+            .then(utils.sortListByProperty('name'))
             .then(utils.setFieldForObject(user, 'skills'));
     };
 }
