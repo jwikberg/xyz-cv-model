@@ -244,17 +244,7 @@ function loadDomainForAssignments(headers, domains) {
     };
 }
 
-function loadDomainForCertificates(headers, domains) {
-    return function(certificates) {
-        return Promise.each(certificates, function(certificate) {
-            return utils.matchIdsAndObjects([certificate.domain], domains)
-                .then(utils.extractOneFromItems)
-                .then(utils.setFieldForObject(certificate, 'domain'));
-        });
-    };
-}
-
-// Certificates
+// CERTIFICATES
 // ============================================================================
 
 function loadCertificatesForUser(headers) {
@@ -278,17 +268,9 @@ function matchCertificatesAndConnectors(certificates, connectors) {
 function loadCertificateSubEntities(headers) {
     return function(certificates) {
         return new Promise(function(resolve) {
-            var skills = skillResource.getAllSkills(headers);
-            var customers = customerResource.getAllCustomers(headers);
-            var domains = domainResource.getAllDomains(headers);
-            return Promise.all([skills, customers, domains])
-                .then(function() {
-                    skills = skills.value();
-                    customers = customers.value();
-                    domains = domains.value();
+            return skillResource.getAllSkills(headers)
+                .then(function(skills) {
                     return loadSkillsForCertificates(headers, skills)(certificates)
-                        .then(loadCustomerForCertificates(headers, customers))
-                        .then(loadDomainForCertificates(headers, domains))
                         .then(resolve);
                 });
         });
@@ -300,16 +282,6 @@ function loadSkillsForCertificates(headers, skills) {
         return Promise.each(certificates, function(certificate) {
             return utils.matchIdsAndObjects(certificate.skills, skills)
                 .then(utils.setFieldForObject(certificate, 'skills'));
-        });
-    };
-}
-
-function loadCustomerForCertificates(headers, customers) {
-    return function(certificates) {
-        return Promise.each(certificates, function(certificate) {
-            return utils.matchIdsAndObjects([certificate.customer], customers)
-                .then(utils.extractOneFromItems)
-                .then(utils.setFieldForObject(certificate, 'customer'));
         });
     };
 }
