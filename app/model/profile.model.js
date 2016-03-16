@@ -6,6 +6,7 @@ var roleResource = require('../resource/role.resource');
 var skillResource = require('../resource/skill.resource');
 var languageResource = require('../resource/language.resource');
 var otherResource = require('../resource/other.resource');
+var skillGroupResource = require('../resource/skillGroup.resource');
 var fileResource = require('../resource/file.resource');
 var assignmentResource = require('../resource/assignment.resource');
 var certificateResource = require('../resource/certificate.resource');
@@ -56,6 +57,7 @@ function loadUser(id, headers) {
             .then(loadSkillsForUser(headers))
             .then(loadLanguagesForUser(headers))
             .then(loadOthersForUser(headers))
+            .then(loadSkillGroups(headers))
             .then(loadRoleForUser(headers))
             .then(loadAssignmentsForUser(headers))
             .then(loadCertificatesForUser(headers))
@@ -72,6 +74,7 @@ function loadCurrentUser(headers) {
             .then(loadSkillsForUser(headers))
             .then(loadLanguagesForUser(headers))
             .then(loadOthersForUser(headers))
+            .then(loadSkillGroups(headers))
             .then(loadRoleForUser(headers))
             .then(loadAssignmentsForUser(headers))
             .then(loadCertificatesForUser(headers))
@@ -101,6 +104,16 @@ function loadSkillsForUser(headers) {
 function matchSkillsAndConnectors(skills, connectors) {
     return utils.extractPropertiesFromConnectors('skillId', connectors, ['level', 'futureLevel', 'years', 'updatedAt', 'expertise', 'experience'])
         .then(utils.matchListAndObjectIds(skills));
+}
+
+// SKILLGROUPS
+// ============================================================================
+
+function loadSkillGroups(headers) {
+    return function(user) {
+        return skillGroupResource.getAllSkillGroups(headers)
+            .then(utils.setFieldForObject(user, 'skillGroups'));
+    };
 }
 
 // LANGUAGES
