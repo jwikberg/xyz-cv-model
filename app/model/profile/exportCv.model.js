@@ -4,6 +4,7 @@ var officeResource = require('../../resource/office.resource');
 var userResource = require('../../resource/user.resource');
 var roleResource = require('../../resource/role.resource');
 var skillResource = require('../../resource/skill.resource');
+var skillGroupResource = require('../../resource/skillGroup.resource');
 var languageResource = require('../../resource/language.resource');
 var otherResource = require('../../resource/other.resource');
 var fileResource = require('../../resource/file.resource');
@@ -34,10 +35,79 @@ function loadDoc() {
             .readFileSync(__dirname + "/input.docx", "binary");
 
         var doc = new Docxtemplater(content);
-
         //set the templateVariables
+
+        var skillGroups = [];
+        var expertise = [];
+        var experience = [];
+        var assignments = [];
+        var certificates = [];
+        var courses = [];
+
+        user.skills.forEach(function(skill) {
+            if(skill.expertise) {
+                expertise.push(skill);
+            }
+            if(skill.experience) {
+                experience.push(skill);
+            }
+        });
+
+        user.assignments.forEach(function(assignment) {
+            if(assignment.dateFrom) {
+                assignment.dateFrom = assignment.dateFrom.substring(0,10);
+            }
+            if(assignment.dateTo) {
+                assignment.dateTo = assignment.dateTo.substring(0,10);
+            } else {
+                assignment.dateTo = "Ongoing";
+            }
+            assignments.push(assignment);
+        });
+
+        user.certificates.forEach(function(certificate) {
+            if(certificate.dateTo) {
+                certificate.dateTo = certificate.dateTo.substring(0,4);
+            } else {
+                certificate.dateTo = "Ongoing";
+            }
+            certificates.push(certificate);
+        });
+
+        user.courses.forEach(function(course) {
+            if(course.dateFrom) {
+                course.dateFrom = course.dateFrom.substring(0,10);
+            }
+            if(course.dateTo) {
+                course.dateTo = course.dateTo.substring(0,10);
+            } else {
+                course.dateTo = "Ongoing";
+            }
+            courses.push(course);
+        });
+
+        user.skillGroups.forEach(function(skillGroup) {
+            skillGroup.skills = [];
+            user.skills.forEach(function(skill) {
+                if(skill.skillGroupId === skillGroup._id) {
+                    skillGroup.skills.push(skill);
+                }
+            });
+            if (skillGroup.skills.length !== 0) {
+                skillGroups.push(skillGroup);
+            }
+        });
+
         doc.setData({
-            user: user
+            user: user,
+            expertise: expertise,
+            experience: experience,
+            skillGroups: skillGroups,
+            assignments: assignments,
+            certificates: certificates,
+            languages: user.languages,
+            courses: courses,
+            others: user.others
         });
 
         //apply them (replace all occurences of {first_name} by Hipp, ...)
@@ -77,6 +147,7 @@ function loadUser(id, headers) {
         return userResource.getUserById(id, headers)
             .then(loadProfileImageForUser(headers))
             .then(loadSkillsForUser(headers))
+            .then(loadSkillGroups(headers))
             .then(loadLanguagesForUser(headers))
             .then(loadOthersForUser(headers))
             .then(loadRoleForUser(headers))
@@ -84,6 +155,7 @@ function loadUser(id, headers) {
             .then(loadCertificatesForUser(headers))
             .then(loadOfficeForUser(headers))
             .then(loadCoursesForUser(headers))
+            .then(loadDoc())
             .then(utils.setFieldForObject(model, 'user'));
     };
 }
@@ -93,6 +165,7 @@ function loadCurrentUser(headers) {
         return userResource.getCurrentUser(headers)
             .then(loadProfileImageForUser(headers))
             .then(loadSkillsForUser(headers))
+            .then(loadSkillGroups(headers))
             .then(loadLanguagesForUser(headers))
             .then(loadOthersForUser(headers))
             .then(loadRoleForUser(headers))
@@ -127,6 +200,16 @@ function matchSkillsAndConnectors(skills, connectors) {
         .then(utils.matchListAndObjectIds(skills));
 }
 
+// SKILLGROUPS
+// ============================================================================
+
+function loadSkillGroups(headers) {
+    return function(user) {
+        return skillGroupResource.getAllSkillGroups(headers)
+            .then(utils.setFieldForObject(user, 'skillGroups'));
+    };
+}
+ 
 // LANGUAGES
 // ============================================================================
 
