@@ -54,6 +54,9 @@ function loadDoc() {
         });
 
         user.assignments.forEach(function(assignment) {
+            if(assignment.description) {
+                assignment.description = assignment.description.replace(/(<([^>]+)>)/ig,"");
+            }
             if(assignment.dateFrom) {
                 assignment.dateFrom = assignment.dateFrom.substring(0,10);
             }
