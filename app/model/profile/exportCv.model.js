@@ -45,22 +45,30 @@ function loadDoc() {
         var courses = [];
 
         user.skills.forEach(function(skill) {
-            if(skill.expertise) {
+            if (skill.expertise) {
                 expertise.push(skill);
             }
-            if(skill.experience) {
+            if (skill.experience) {
                 experience.push(skill);
             }
         });
 
         user.assignments.forEach(function(assignment) {
-            if(assignment.description) {
+            var skills = '';
+            assignment.skills.forEach(function(skill) {
+                skills += skill.name + ', ';
+            });
+            if (skills !== '') {
+                skills = skills.substring(0, (skills.length - 2)) + '.';
+            }
+            assignment.skills = skills;
+            if (assignment.description) {
                 assignment.description = assignment.description.replace(/(<([^>]+)>)/ig,"");
             }
-            if(assignment.dateFrom) {
+            if (assignment.dateFrom) {
                 assignment.dateFrom = assignment.dateFrom.substring(0,10);
             }
-            if(assignment.dateTo) {
+            if (assignment.dateTo) {
                 assignment.dateTo = assignment.dateTo.substring(0,10);
             } else {
                 assignment.dateTo = "Ongoing";
@@ -69,7 +77,7 @@ function loadDoc() {
         });
 
         user.certificates.forEach(function(certificate) {
-            if(certificate.dateTo) {
+            if (certificate.dateTo) {
                 certificate.dateTo = certificate.dateTo.substring(0,4);
             } else {
                 certificate.dateTo = "Ongoing";
@@ -78,10 +86,10 @@ function loadDoc() {
         });
 
         user.courses.forEach(function(course) {
-            if(course.dateFrom) {
+            if (course.dateFrom) {
                 course.dateFrom = course.dateFrom.substring(0,10);
             }
-            if(course.dateTo) {
+            if (course.dateTo) {
                 course.dateTo = course.dateTo.substring(0,10);
             } else {
                 course.dateTo = "Ongoing";
@@ -90,16 +98,31 @@ function loadDoc() {
         });
 
         user.skillGroups.forEach(function(skillGroup) {
-            skillGroup.skills = [];
+            skillGroup.skills = '';
             user.skills.forEach(function(skill) {
-                if(skill.skillGroupId === skillGroup._id) {
-                    skillGroup.skills.push(skill);
+                if (skill.skillGroupId === skillGroup._id) {
+                    skillGroup.skills += skill.name + ', ';
                 }
             });
-            if (skillGroup.skills.length !== 0) {
+            if (skillGroup.skills !== '') {
+                skillGroup.skills = skillGroup.skills.substring(0, (skillGroup.skills.length - 2)) + '.';
                 skillGroups.push(skillGroup);
             }
         });
+
+        var uncategorized = {
+            name: 'Other',
+            skills: ''
+        };
+        user.skills.forEach(function(skill) {
+            if (skill.skillGroupId === null) {
+                uncategorized.skills += skill.name + ', ';
+            }
+        });
+        if (uncategorized.skills !== '') {
+            uncategorized.skills = uncategorized.skills.substring(0, (uncategorized.skills.length - 2)) + '.';
+            skillGroups.push(uncategorized);
+        }
 
         doc.setData({
             user: user,
