@@ -25,16 +25,32 @@ var userToCourseResource = require('../../resource/userToCourseConnector.resourc
 var utils = require('../../utils/utils');
 var fs = require('fs');
 var Docxtemplater = require('docxtemplater');
+var ImageModule = require('docxtemplater-image-module');
+var rp = require('request-promise');
 
 var Promise = require('bluebird');
 
 function loadDoc() {
     return function(user) {
+        var opts = {}
+        opts.centered = false;
+        opts.getImage=function(tagValue, tagName) {
+            return tagValue;
+        }
+
+        opts.getSize=function(img,tagValue, tagName) {
+            return [150,150];
+        }
+
+        var imageModule=new ImageModule(opts);
+
         //Load the docx file as a binary
         var content = fs
             .readFileSync(__dirname + "/input.docx", "binary");
 
-        var doc = new Docxtemplater(content);
+        var doc = new Docxtemplater(content)
+            .attachModule(imageModule);
+
         //set the templateVariables
 
         var skillGroups = [];
@@ -115,7 +131,7 @@ function loadDoc() {
             skills: ''
         };
         user.skills.forEach(function(skill) {
-            if (skill.skillGroupId === null) {
+            if (!skill.skillGroupId) {
                 uncategorized.skills += skill.name + ', ';
             }
         });
@@ -134,6 +150,7 @@ function loadDoc() {
             languages: user.languages,
             courses: courses,
             others: user.others
+            profileImage: user.profileImage
         });
 
         //apply them (replace all occurences of {first_name} by Hipp, ...)
@@ -156,8 +173,7 @@ function getExportCvTemplate() {
 
 exports.getExportCvModelByUserId = function(id, headers) {
     return getExportCvTemplate()
-        .then(loadUser(id, headers))
-        .then(loadCloud);
+        .then(loadUser(id, headers));
 };
 
 exports.getCurrentExportCvModel = function(headers) {
@@ -181,6 +197,7 @@ function loadUser(id, headers) {
             .then(loadCertificatesForUser(headers))
             .then(loadOfficeForUser(headers))
             .then(loadCoursesForUser(headers))
+            .then(loadBinaryProfileImageForUser(headers))
             .then(loadDoc())
             .then(utils.setFieldForObject(model, 'user'));
     };
@@ -199,6 +216,7 @@ function loadCurrentUser(headers) {
             .then(loadCertificatesForUser(headers))
             .then(loadOfficeForUser(headers))
             .then(loadCoursesForUser(headers))
+            .then(loadBinaryProfileImageForUser(headers))
             .then(loadDoc())
             .then(utils.setFieldForObject(model, 'user'));
     };
@@ -486,172 +504,17 @@ function loadProfileImageForUser(headers) {
     };
 }
 
-// CLOUD
-// ============================================================================
-
-function loadCloud(model) {
-    return loadCloudMap({}, model)
-        .then(loadCloudWords)
-        .then(loadCloudMaxWeight)
-        .then(setOpacityForWords)
-        .then(utils.setFieldForObject(model, 'cloud'));
-
-}
-
-function loadCloudMap(cloud, model) {
-    return loadMapSkills(model)({})
-        .then(loadMapAssignments(model))
-        .then(loadMapGeneralInfo(model))
-        .then(loadMapCertificates(model))
-        .then(utils.setFieldForObject(cloud, 'map'));
-}
-
-function loadCloudWords(cloud) {
-    return getWordsFromMap(cloud.map)
-        .then(utils.sortListByProperty('weight'))
-        .then(utils.reverseList)
-        .then(utils.setFieldForObject(cloud, 'words'));
-}
-
-function loadCloudMaxWeight(cloud) {
-    return getMaxWeightFromWords(cloud.words)
-        .then(utils.setFieldForObject(cloud, 'maxWeight'));
-}
-
-function getWordsFromMap(map) {
-    return new Promise(function(resolve) {
-        var words = [];
-        for (var prop in map) {
-            if (map.hasOwnProperty(prop)) {
-                var word = map[prop];
-                words.push(word);
-            }
-        }
-
-        return resolve(words);
-    });
-}
-
-function getMaxWeightFromWords(words) {
-    return new Promise(function(resolve) {
-        var maxWeight = 1;
-        words.forEach(function(word) {
-            if (maxWeight < word.weight) {
-                maxWeight = word.weight;
-            }
-        });
-
-        return resolve(maxWeight);
-    });
-}
-
-function setOpacityForWords(cloud) {
-    return new Promise(function(resolve) {
-        cloud.words.forEach(function(word) {
-            word.opacity = word.weight / cloud.maxWeight;
-        });
-
-        return resolve(cloud);
-    });
-}
-
-function loadMapSkills(model) {
-    return function(map) {
-        return new Promise(function(resolve) {
-            model.user.skills.forEach(function(skill) {
-                if (map[skill.name]) {
-                    return;
-                }
-
-                var word = {};
-                word.text = skill.name;
-                word.weight = skill.level;
-                map[word.text] = word;
+function loadBinaryProfileImageForUser(headers) {
+    return function(user) {
+        var options = {
+            uri: 'http://localhost:9000/cv-api/file/thumbnail/' + user.profileImage.generatedName,
+            encoding: null,
+            headers: headers
+        };
+        return rp(options)
+            .then(function (i) {
+                user.profileImage = i;
+                return user;
             });
-
-            return resolve(map);
-        });
-    };
-}
-
-function loadMapAssignments(model) {
-    return function(map) {
-        return new Promise(function(resolve) {
-            model.user.assignments.forEach(function(assignment) {
-                if (map[assignment.name]) {
-                    map[assignment.name].weight += 1;
-                    return;
-                }
-
-                var word = {};
-                word.text = assignment.name;
-                word.weight = 1;
-                map[assignment.name] = word;
-                assignment.skills.forEach(function(skill) {
-                    if (map[skill.name]) {
-                        map[skill.name].weight += 1;
-                        return;
-                    }
-
-                    var word = {};
-                    word.text = skill.name;
-                    word.weight = 1;
-                    map[skill.name] = word;
-                });
-            });
-
-            return resolve(map);
-        });
-    };
-}
-
-function loadMapCertificates(model) {
-    return function(map) {
-        return new Promise(function(resolve) {
-            model.user.certificates.forEach(function(certificate) {
-                if (map[certificate.name]) {
-                    map[certificate.name].weight += 1;
-                    return;
-                }
-
-                var word = {};
-                word.text = certificate.name;
-                word.weight = 1;
-                map[certificate.name] = word;
-                certificate.skills.forEach(function(skill) {
-                    if (map[skill.name]) {
-                        map[skill.name].weight += 1;
-                        return;
-                    }
-
-                    var word = {};
-                    word.text = skill.name;
-                    word.weight = 1;
-                    map[skill.name] = word;
-                });
-            });
-
-            return resolve(map);
-        });
-    };
-}
-
-function loadMapGeneralInfo(model) {
-    return function(map) {
-        return new Promise(function(resolve) {
-            if (model.user.office) {
-                map[model.user.office.name] = {text: model.user.office.name, weight: 1};
-            }
-
-            if (model.user.country) {
-                map[model.user.country] = {text: model.user.country, weight: 1};
-            }
-
-            if (model.user.role) {
-                map[model.user.role.name] = {text: model.user.role.name, weight: 1};
-            }
-
-            return resolve(map);
-        });
     };
 }
