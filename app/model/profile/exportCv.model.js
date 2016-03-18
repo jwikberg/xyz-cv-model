@@ -27,6 +27,7 @@ var fs = require('fs');
 var Docxtemplater = require('docxtemplater');
 var ImageModule = require('docxtemplater-image-module');
 var rp = require('request-promise');
+var config = require('config');
 
 var Promise = require('bluebird');
 
@@ -39,14 +40,19 @@ function loadDoc() {
         }
 
         opts.getSize=function(img,tagValue, tagName) {
-            return [150,150];
+            return [232,232];
         }
 
-        var imageModule=new ImageModule(opts);
+        var imageModule = new ImageModule(opts);
 
         //Load the docx file as a binary
-        var content = fs
-            .readFileSync(__dirname + "/input.docx", "binary");
+        if (user.profileImage) {
+            var content = fs
+                .readFileSync(__dirname + "/input.docx", "binary");
+        } else {
+            var content = fs
+                .readFileSync(__dirname + "/template-no-picture.docx", "binary");
+        }
 
         var doc = new Docxtemplater(content)
             .attachModule(imageModule);
@@ -142,6 +148,12 @@ function loadDoc() {
 
         doc.setData({
             user: user,
+            name: user.name.toUpperCase(),
+            position: user.position.toUpperCase(),
+            office: user.office.name.toUpperCase(),
+            country: user.country.toUpperCase(),
+            summary: user.summary,
+            description: user.description,
             expertise: expertise,
             experience: experience,
             skillGroups: skillGroups,
@@ -149,7 +161,7 @@ function loadDoc() {
             certificates: certificates,
             languages: user.languages,
             courses: courses,
-            others: user.others
+            others: user.others,
             profileImage: user.profileImage
         });
 
@@ -176,36 +188,12 @@ exports.getExportCvModelByUserId = function(id, headers) {
         .then(loadUser(id, headers));
 };
 
-exports.getCurrentExportCvModel = function(headers) {
-    return getExportCvTemplate()
-        .then(loadCurrentUser(headers));
-};
-
 // USER
 // ============================================================================
 
 function loadUser(id, headers) {
     return function(model) {
         return userResource.getUserById(id, headers)
-            .then(loadProfileImageForUser(headers))
-            .then(loadSkillsForUser(headers))
-            .then(loadSkillGroups(headers))
-            .then(loadLanguagesForUser(headers))
-            .then(loadOthersForUser(headers))
-            .then(loadRoleForUser(headers))
-            .then(loadAssignmentsForUser(headers))
-            .then(loadCertificatesForUser(headers))
-            .then(loadOfficeForUser(headers))
-            .then(loadCoursesForUser(headers))
-            .then(loadBinaryProfileImageForUser(headers))
-            .then(loadDoc())
-            .then(utils.setFieldForObject(model, 'user'));
-    };
-}
-
-function loadCurrentUser(headers) {
-    return function(model) {
-        return userResource.getCurrentUser(headers)
             .then(loadProfileImageForUser(headers))
             .then(loadSkillsForUser(headers))
             .then(loadSkillGroups(headers))
@@ -506,15 +494,19 @@ function loadProfileImageForUser(headers) {
 
 function loadBinaryProfileImageForUser(headers) {
     return function(user) {
-        var options = {
-            uri: 'http://localhost:9000/cv-api/file/thumbnail/' + user.profileImage.generatedName,
-            encoding: null,
-            headers: headers
-        };
-        return rp(options)
-            .then(function (i) {
-                user.profileImage = i;
-                return user;
-            });
+        if (!user.profileImage) {
+            return user;
+        } else {
+            var options = {
+                uri: config.API_URL + 'file/thumbnail/' + user.profileImage.generatedName,
+                encoding: null,
+                headers: headers
+            };
+            return rp(options)
+                .then(function (i) {
+                    user.profileImage = i;
+                    return user;
+                });
+        }
     };
 }
