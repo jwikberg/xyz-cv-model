@@ -35,7 +35,8 @@ function loadDoc() {
     return function(user) {
         var opts = {}
         opts.centered = false;
-        opts.getImage=function(tagValue, tagName) {
+
+        opts.getImage = function(tagValue, tagName) {
             return tagValue;
         }
 
@@ -46,13 +47,7 @@ function loadDoc() {
         var imageModule = new ImageModule(opts);
 
         //Load the docx file as a binary
-        if (user.profileImage) {
-            var content = fs
-                .readFileSync(__dirname + "/input.docx", "binary");
-        } else {
-            var content = fs
-                .readFileSync(__dirname + "/template-no-picture.docx", "binary");
-        }
+        var content = fs.readFileSync(__dirname + '/cvTemplate.docx', 'binary');
 
         var doc = new Docxtemplater(content)
             .attachModule(imageModule);
@@ -93,7 +88,7 @@ function loadDoc() {
             if (assignment.dateTo) {
                 assignment.dateTo = assignment.dateTo.substring(0,10);
             } else {
-                assignment.dateTo = "Ongoing";
+                assignment.dateTo = 'Ongoing';
             }
             assignments.push(assignment);
         });
@@ -102,7 +97,7 @@ function loadDoc() {
             if (certificate.dateTo) {
                 certificate.dateTo = certificate.dateTo.substring(0,4);
             } else {
-                certificate.dateTo = "Ongoing";
+                certificate.dateTo = 'Ongoing';
             }
             certificates.push(certificate);
         });
@@ -114,7 +109,7 @@ function loadDoc() {
             if (course.dateTo) {
                 course.dateTo = course.dateTo.substring(0,10);
             } else {
-                course.dateTo = "Ongoing";
+                course.dateTo = 'Ongoing';
             }
             courses.push(course);
         });
@@ -146,8 +141,21 @@ function loadDoc() {
             skillGroups.push(uncategorized);
         }
 
+        if (!user.position) {
+            user.position = '';
+        }
+
+        if (!user.country) {
+            user.country = '';
+        }
+
+        if (!user.office) {
+            user.office = {
+                name: ''
+            };
+        }
+
         doc.setData({
-            user: user,
             name: user.name.toUpperCase(),
             position: user.position.toUpperCase(),
             office: user.office.name.toUpperCase(),
@@ -495,6 +503,7 @@ function loadProfileImageForUser(headers) {
 function loadBinaryProfileImageForUser(headers) {
     return function(user) {
         if (!user.profileImage) {
+            user.profileImage = fs.readFileSync(__dirname + '/noProfileImage.png', 'binary');
             return user;
         } else {
             var options = {
